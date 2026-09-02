@@ -1,0 +1,6 @@
+@LoanPlatform.Scoring.Api_HostAddress = http://localhost:5182
+
+GET {{LoanPlatform.Scoring.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

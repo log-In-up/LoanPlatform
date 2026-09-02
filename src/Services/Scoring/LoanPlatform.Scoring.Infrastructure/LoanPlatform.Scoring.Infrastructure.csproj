@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\LoanPlatform.Scoring.Application\LoanPlatform.Scoring.Application.csproj" />
+      <ProjectReference Include="..\LoanPlatform.Scoring.Domain\LoanPlatform.Scoring.Domain.csproj" />
+    </ItemGroup>
+
+</Project>
