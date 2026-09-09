@@ -7,17 +7,23 @@ namespace LoanPlatform.Scoring.Application.Commands.RunCreditScoring
     public sealed class RunCreditScoringHandler
     {
         private readonly ICreditApplicationRepository _repository;
+        private readonly ICreditScoreRepository _creditScoreRepository;
         private readonly ITaxHistoryProvider _taxHistoryProvider;
         private readonly CreditScoringCalculator _calculator;
+        private readonly IScoringUnitOfWork _unitOfWork;
 
         public RunCreditScoringHandler(
             ICreditApplicationRepository repository,
+            ICreditScoreRepository creditScoreRepository,
             ITaxHistoryProvider taxHistoryProvider,
-            CreditScoringCalculator calculator)
+            CreditScoringCalculator calculator,
+            IScoringUnitOfWork unitOfWork)
         {
             _repository = repository;
+            _creditScoreRepository = creditScoreRepository;
             _taxHistoryProvider = taxHistoryProvider;
             _calculator = calculator;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<RunCreditScoringResult> HandleAsync(RunCreditScoringCommand command, CancellationToken cancellationToken)
@@ -26,40 +32,33 @@ namespace LoanPlatform.Scoring.Application.Commands.RunCreditScoring
 
             if (application is null)
             {
-                throw new InvalidOperationException(
-                    $"Credit application '{command.ApplicationId}' was not found.");
+                throw new InvalidOperationException($"Credit application '{command.ApplicationId}' was not found.");
             }
 
             application.StartScoring();
 
             try
             {
-                TaxHistory taxHistory =
-                    await _taxHistoryProvider.GetHistoryAsync(
-                        application.ApplicantIdentifier,
+                TaxHistory taxHistory = await _taxHistoryProvider.GetHistoryAsync(application.ApplicantIdentifier,
                         cancellationToken);
 
-                CreditScoringResult result =
-                    _calculator.Calculate(
-                        taxHistory,
-                        application.RequestedAmount);
+                CreditScoringResult result = _calculator.Calculate(taxHistory, application.RequestedAmount);
 
                 application.CompleteScoring(result.Decision);
 
-                await _repository.SaveAsync(
-                    cancellationToken);
+                CreditScore creditScore = new(application.Id, result.Score, result.Decision);
 
-                return new RunCreditScoringResult(
-                    application.Id,
-                    result.Score,
-                    result.Decision);
+                await _creditScoreRepository.AddAsync(creditScore, cancellationToken);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                return new RunCreditScoringResult(application.Id, result.Score, result.Decision);
             }
             catch
             {
                 application.MarkScoringFailed();
 
-                await _repository.SaveAsync(
-                    cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 throw;
             }

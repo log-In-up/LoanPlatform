@@ -1,7 +1,4 @@
 namespace LoanPlatform.Scoring.Application.Queries.GetCreditApplication
 {
-    public class GetCreditApplicationQuery
-    {
-
-    }
+    public sealed record GetCreditApplicationQuery(Guid ApplicationId);
 }

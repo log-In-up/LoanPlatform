@@ -7,6 +7,43 @@ using LoanPlatform.Scoring.Domain.ValueObjects;
 
 namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 {
+    internal sealed class FakeScoringUnitOfWork : IScoringUnitOfWork
+    {
+        public bool SaveCalled { get; private set; }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken)
+        {
+            SaveCalled = true;
+
+            return Task.CompletedTask;
+        }
+    }
+    
+    internal sealed class FakeCreditScoreRepository : ICreditScoreRepository
+    {
+        public CreditScore? CreditScore { get; private set; }
+
+        public Task AddAsync(CreditScore creditScore, CancellationToken cancellationToken)
+        {
+            CreditScore = creditScore;
+
+            return Task.CompletedTask;
+        }
+
+        public Task<CreditScore?> GetByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(
+                CreditScore?.ApplicationId == applicationId
+                    ? CreditScore
+                    : null);
+        }
+
+        public Task SaveAsync(CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+    }
+    
     internal sealed class FakeCreditApplicationRepository : ICreditApplicationRepository
     {
         public CreditApplication? Application { get; set; }
@@ -91,7 +128,16 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             CreditScoringCalculator calculator = new CreditScoringCalculator();
 
-            RunCreditScoringHandler handler = new RunCreditScoringHandler(repository, taxProvider, calculator);
+            FakeCreditScoreRepository scoreRepository = new FakeCreditScoreRepository();
+
+            FakeScoringUnitOfWork unitOfWork = new FakeScoringUnitOfWork();
+
+            RunCreditScoringHandler handler = new RunCreditScoringHandler(
+                    repository,
+                    scoreRepository,
+                    taxProvider,
+                    calculator,
+                    unitOfWork);
 
             RunCreditScoringCommand command = new RunCreditScoringCommand(application.Id);
 
@@ -107,7 +153,15 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             Assert.Equal(CreditApplicationStatus.Scored, application.Status);
 
-            Assert.True(repository.SaveCalled);
+            Assert.True(unitOfWork.SaveCalled);
+
+            Assert.NotNull(scoreRepository.CreditScore);
+
+            Assert.Equal(application.Id, scoreRepository.CreditScore.ApplicationId);
+
+            Assert.Equal(result.Score, scoreRepository.CreditScore.Score);
+
+            Assert.Equal(result.Decision, scoreRepository.CreditScore.Decision);
         }
         
         [Fact]
@@ -129,7 +183,16 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             CreditScoringCalculator calculator = new CreditScoringCalculator();
 
-            RunCreditScoringHandler handler = new RunCreditScoringHandler(repository, taxProvider, calculator);
+            FakeCreditScoreRepository scoreRepository = new FakeCreditScoreRepository();
+
+            FakeScoringUnitOfWork unitOfWork = new FakeScoringUnitOfWork();
+
+            RunCreditScoringHandler handler = new RunCreditScoringHandler(
+                    repository,
+                    scoreRepository,
+                    taxProvider,
+                    calculator,
+                    unitOfWork);
 
             RunCreditScoringCommand command = new RunCreditScoringCommand(Guid.NewGuid());
 
@@ -163,11 +226,16 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             CreditScoringCalculator calculator = new CreditScoringCalculator();
 
-            RunCreditScoringHandler handler =
-                new RunCreditScoringHandler(
+            FakeCreditScoreRepository scoreRepository = new FakeCreditScoreRepository();
+
+            FakeScoringUnitOfWork unitOfWork = new FakeScoringUnitOfWork();
+
+            RunCreditScoringHandler handler = new RunCreditScoringHandler(
                     repository,
+                    scoreRepository,
                     taxProvider,
-                    calculator);
+                    calculator,
+                    unitOfWork);
 
             RunCreditScoringCommand command =
                 new RunCreditScoringCommand(
@@ -183,7 +251,7 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
                 CreditApplicationStatus.Failed,
                 application.Status);
 
-            Assert.True(repository.SaveCalled);
+            Assert.True(unitOfWork.SaveCalled);
         }
         
         [Fact]
@@ -214,12 +282,19 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
                     [
                         new TaxPayment(2025, 1_000_000m)
                     ]);
+            FakeCreditScoreRepository scoreRepository =
+                new FakeCreditScoreRepository();
+
+            FakeScoringUnitOfWork unitOfWork =
+                new FakeScoringUnitOfWork();
 
             RunCreditScoringHandler handler =
                 new RunCreditScoringHandler(
                     repository,
+                    scoreRepository,
                     new FakeTaxHistoryProvider(taxHistory),
-                    new CreditScoringCalculator());
+                    new CreditScoringCalculator(),
+                    unitOfWork);
 
             RunCreditScoringCommand command = new RunCreditScoringCommand(application.Id);
 

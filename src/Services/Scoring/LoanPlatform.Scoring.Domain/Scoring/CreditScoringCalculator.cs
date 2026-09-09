@@ -16,22 +16,15 @@ namespace LoanPlatform.Scoring.Domain.Scoring
                     "Requested amount must be greater than zero.");
             }
 
-            int taxActivityScore =
-                CalculateTaxActivityScore(
-                    taxHistory,
-                    requestedAmount);
+            int taxActivityScore = CalculateTaxActivityScore(taxHistory, requestedAmount);
 
-            int stabilityScore =
-                CalculateStabilityScore(taxHistory);
+            int stabilityScore = CalculateStabilityScore(taxHistory);
 
-            int growthScore =
-                CalculateGrowthScore(taxHistory);
+            int growthScore = CalculateGrowthScore(taxHistory);
 
-            int regularityScore =
-                CalculateRegularityScore(taxHistory);
+            int regularityScore = CalculateRegularityScore(taxHistory);
 
-            int historyScore =
-                CalculateHistoryScore(taxHistory);
+            int historyScore = CalculateHistoryScore(taxHistory);
 
             int totalScore =
                 taxActivityScore +
