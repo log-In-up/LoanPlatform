@@ -8,10 +8,16 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.19"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.19">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.19" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\LoanPlatform.LoanCore.Application\LoanPlatform.LoanCore.Application.csproj" />
+      <ProjectReference Include="..\LoanPlatform.LoanCore.Infrastructure\LoanPlatform.LoanCore.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

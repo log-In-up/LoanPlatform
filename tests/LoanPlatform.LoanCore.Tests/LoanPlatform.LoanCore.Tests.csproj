@@ -18,4 +18,9 @@
         <Using Include="Xunit"/>
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\Services\LoanCore\LoanPlatform.LoanCore.Application\LoanPlatform.LoanCore.Application.csproj" />
+      <ProjectReference Include="..\..\src\Services\LoanCore\LoanPlatform.LoanCore.Domain\LoanPlatform.LoanCore.Domain.csproj" />
+    </ItemGroup>
+
 </Project>
