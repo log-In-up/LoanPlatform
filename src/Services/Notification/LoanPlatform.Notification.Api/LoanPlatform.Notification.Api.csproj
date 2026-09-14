@@ -7,11 +7,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.19"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.19" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\LoanPlatform.Notification.Application\LoanPlatform.Notification.Application.csproj" />
+      <ProjectReference Include="..\LoanPlatform.Notification.Infrastructure\LoanPlatform.Notification.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

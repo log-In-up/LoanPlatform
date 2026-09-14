@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\LoanPlatform.LoanCore.Domain\LoanPlatform.LoanCore.Domain.csproj" />
+      <ProjectReference Include="..\..\..\BuildingBlocks\LoanPlatform.Contracts\LoanPlatform.Contracts.csproj" />
     </ItemGroup>
 
 </Project>

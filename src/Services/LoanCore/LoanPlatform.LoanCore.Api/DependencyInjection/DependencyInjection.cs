@@ -1,3 +1,4 @@
+using Confluent.Kafka;
 using LoanPlatform.LoanCore.Application.Common;
 using LoanPlatform.LoanCore.Application.Loans.ActivateLoan;
 using LoanPlatform.LoanCore.Application.Loans.ApproveLoan;
@@ -7,10 +8,11 @@ using LoanPlatform.LoanCore.Application.Loans.GetLoan;
 using LoanPlatform.LoanCore.Application.Loans.RejectLoan;
 using LoanPlatform.LoanCore.Application.Loans.Schedule;
 using LoanPlatform.LoanCore.Application.Loans;
-using LoanPlatform.LoanCore.Application.Payments.MakePayment;
-using LoanPlatform.LoanCore.Application.Payments;
 using LoanPlatform.LoanCore.Application.Payments.GetPayment;
 using LoanPlatform.LoanCore.Application.Payments.GetPaymentsByLoan;
+using LoanPlatform.LoanCore.Application.Payments.MakePayment;
+using LoanPlatform.LoanCore.Application.Payments;
+using LoanPlatform.LoanCore.Infrastructure.Messaging;
 using LoanPlatform.LoanCore.Infrastructure.Persistence.Repositories;
 using LoanPlatform.LoanCore.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +45,23 @@ public static class DependencyInjection
         services.AddScoped<GetPaymentHandler>();
         services.AddScoped<GetPaymentsByLoanHandler>();
 
+        string bootstrapServers =
+            configuration["Kafka:BootstrapServers"]
+            ?? throw new InvalidOperationException(
+                "Kafka:BootstrapServers configuration is missing.");
+
+        services.AddSingleton<IProducer<Null, string>>(_ =>
+        {
+            ProducerConfig producerConfig = new()
+            {
+                BootstrapServers = bootstrapServers
+            };
+
+            return new ProducerBuilder<Null, string>(producerConfig).Build();
+        });
+
+        services.AddScoped<ILoanApprovedPublisher, KafkaLoanApprovedPublisher>();
+        
         return services;
     }
 }
