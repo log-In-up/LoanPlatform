@@ -1,13 +1,4 @@
-using LoanPlatform.Scoring.Application.Abstractions;
-using LoanPlatform.Scoring.Application.Commands.CreateCreditApplication;
-using LoanPlatform.Scoring.Application.Commands.RunCreditScoring;
-using LoanPlatform.Scoring.Application.Queries.GetCreditApplication;
-using LoanPlatform.Scoring.Application.Queries.GetCreditScore;
-using LoanPlatform.Scoring.Domain.Scoring;
-using LoanPlatform.Scoring.Infrastructure.Persistence;
-using LoanPlatform.Scoring.Infrastructure.Repositories;
-using LoanPlatform.Scoring.Infrastructure.TaxAuthority;
-using Microsoft.EntityFrameworkCore;
+using LoanPlatform.Scoring.Api.DependencyInjection;
 
 namespace LoanPlatform.Scoring.Api
 {
@@ -19,34 +10,7 @@ namespace LoanPlatform.Scoring.Api
 
             builder.Services.AddControllers();
             builder.Services.AddOpenApi();
-
-            // Database
-            builder.Services.AddDbContext<ScoringDbContext>(options =>
-                options.UseNpgsql(
-                    builder.Configuration.GetConnectionString("ScoringDatabase")));
-
-            // Repositories
-            builder.Services.AddScoped<ICreditApplicationRepository, CreditApplicationRepository>();
-            builder.Services.AddScoped<ICreditScoreRepository, CreditScoreRepository>();
-            builder.Services.AddScoped<IScoringUnitOfWork, ScoringUnitOfWork>();
-
-            // Domain services
-            builder.Services.AddScoped<CreditScoringCalculator>();
-
-            // Application handlers
-            builder.Services.AddScoped<CreateCreditApplicationHandler>();
-            builder.Services.AddScoped<RunCreditScoringHandler>();
-            builder.Services.AddScoped<GetCreditApplicationHandler>();
-            builder.Services.AddScoped<GetCreditScoreHandler>();
-
-            builder.Services.AddHttpClient<ITaxHistoryProvider, HttpTaxHistoryProvider>(client =>
-            {
-                client.BaseAddress = new Uri(
-                    builder.Configuration["TaxAuthority:BaseUrl"]
-                    ?? throw new InvalidOperationException(
-                        "TaxAuthority:BaseUrl is not configured."));
-            });
-            
+            builder.Services.AddScoringServices(builder.Configuration);
             builder.Services.AddAuthorization();
 
             WebApplication application = builder.Build();
@@ -59,6 +23,7 @@ namespace LoanPlatform.Scoring.Api
             application.UseHttpsRedirection();
             application.UseAuthorization();
             application.MapControllers();
+
             application.Run();
         }
     }
