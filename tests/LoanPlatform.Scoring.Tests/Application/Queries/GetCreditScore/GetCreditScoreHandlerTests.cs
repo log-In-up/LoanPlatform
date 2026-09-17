@@ -12,24 +12,26 @@ namespace LoanPlatform.Scoring.Tests.Application.Queries.GetCreditScore
         {
             // Arrange
             Guid applicationId = Guid.NewGuid();
-    
+
             CreditScore creditScore = new(applicationId, 631, CreditDecision.PreApproved);
-    
+
             FakeCreditScoreRepository repository = new(creditScore);
-    
-            GetCreditScoreHandler handler = new(repository);
-    
+
+            FakeScoringCache cache = new();
+
+            GetCreditScoreHandler handler = new(repository, cache);
+
             GetCreditScoreQuery query = new(applicationId);
-    
+
             // Act
             GetCreditScoreResult? result = await handler.HandleAsync(query, CancellationToken.None);
-    
+
             // Assert
             Assert.NotNull(result);
             Assert.Equal(applicationId, result.ApplicationId);
             Assert.Equal(631, result.Score);
             Assert.Equal(CreditDecision.PreApproved, result.Decision);
-    
+
             Assert.Equal(creditScore.CalculatedAt, result.CalculatedAt);
         }
 
@@ -38,19 +40,21 @@ namespace LoanPlatform.Scoring.Tests.Application.Queries.GetCreditScore
         {
             // Arrange
             FakeCreditScoreRepository repository = new(null);
-    
-            GetCreditScoreHandler handler = new(repository);
-    
+
+            FakeScoringCache cache = new();
+
+            GetCreditScoreHandler handler = new(repository, cache);
+
             GetCreditScoreQuery query = new(Guid.NewGuid());
-    
+
             // Act
             GetCreditScoreResult? result = await handler.HandleAsync(query, CancellationToken.None);
-    
+
             // Assert
             Assert.Null(result);
         }
     }
-    
+
     internal sealed class FakeCreditScoreRepository : ICreditScoreRepository
     {
         private readonly CreditScore? _creditScore;
@@ -77,6 +81,32 @@ namespace LoanPlatform.Scoring.Tests.Application.Queries.GetCreditScore
         public Task SaveAsync(CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    internal sealed class FakeScoringCache : IScoringCache
+    {
+        public Task<T?> GetAsync<T>(
+            string key,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<T?>(default);
+        }
+
+        public Task SetAsync<T>(
+            string key,
+            T value,
+            TimeSpan expiration,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(
+            string key,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
         }
     }
 }

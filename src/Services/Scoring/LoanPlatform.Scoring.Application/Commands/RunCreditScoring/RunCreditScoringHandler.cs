@@ -11,19 +11,22 @@ namespace LoanPlatform.Scoring.Application.Commands.RunCreditScoring
         private readonly ITaxHistoryProvider _taxHistoryProvider;
         private readonly CreditScoringCalculator _calculator;
         private readonly IScoringUnitOfWork _unitOfWork;
+        private readonly IScoringCache _cache;
 
         public RunCreditScoringHandler(
             ICreditApplicationRepository repository,
             ICreditScoreRepository creditScoreRepository,
             ITaxHistoryProvider taxHistoryProvider,
             CreditScoringCalculator calculator,
-            IScoringUnitOfWork unitOfWork)
+            IScoringUnitOfWork unitOfWork,
+            IScoringCache cache)
         {
             _repository = repository;
             _creditScoreRepository = creditScoreRepository;
             _taxHistoryProvider = taxHistoryProvider;
             _calculator = calculator;
             _unitOfWork = unitOfWork;
+            _cache = cache;
         }
 
         public async Task<RunCreditScoringResult> HandleAsync(RunCreditScoringCommand command, CancellationToken cancellationToken)
@@ -51,6 +54,14 @@ namespace LoanPlatform.Scoring.Application.Commands.RunCreditScoring
                 await _creditScoreRepository.AddAsync(creditScore, cancellationToken);
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                await _cache.RemoveAsync(
+                    $"credit-application:{application.Id}",
+                    cancellationToken);
+
+                await _cache.RemoveAsync(
+                    $"credit-score:{application.Id}",
+                    cancellationToken);
 
                 return new RunCreditScoringResult(application.Id, result.Score, result.Decision);
             }

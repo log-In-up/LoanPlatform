@@ -4,6 +4,7 @@ using LoanPlatform.Scoring.Domain.Entities;
 using LoanPlatform.Scoring.Domain.Enums;
 using LoanPlatform.Scoring.Domain.Scoring;
 using LoanPlatform.Scoring.Domain.ValueObjects;
+using System.Collections.Generic;
 
 namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 {
@@ -18,7 +19,7 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
             return Task.CompletedTask;
         }
     }
-    
+
     internal sealed class FakeCreditScoreRepository : ICreditScoreRepository
     {
         public CreditScore? CreditScore { get; private set; }
@@ -43,7 +44,7 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
             return Task.CompletedTask;
         }
     }
-    
+
     internal sealed class FakeCreditApplicationRepository : ICreditApplicationRepository
     {
         public CreditApplication? Application { get; set; }
@@ -84,7 +85,7 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
             return Task.FromResult(_history);
         }
     }
-    
+
     internal sealed class FailingTaxHistoryProvider : ITaxHistoryProvider
     {
         public Task<TaxHistory> GetHistoryAsync(ApplicantIdentifier applicantIdentifier, CancellationToken cancellationToken)
@@ -92,7 +93,37 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
             throw new HttpRequestException("Government service is unavailable.");
         }
     }
-    
+
+    internal sealed class FakeScoringCache : IScoringCache
+    {
+        public List<string> RemovedKeys { get; } = new();
+
+        public Task<T?> GetAsync<T>(
+            string key,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<T?>(default);
+        }
+
+        public Task SetAsync<T>(
+            string key,
+            T value,
+            TimeSpan expiration,
+            CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(
+            string key,
+            CancellationToken cancellationToken)
+        {
+            RemovedKeys.Add(key);
+
+            return Task.CompletedTask;
+        }
+    }
+
     public class RunCreditScoringHandlerTests
     {
         [Fact]
@@ -132,12 +163,15 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             FakeScoringUnitOfWork unitOfWork = new FakeScoringUnitOfWork();
 
+            FakeScoringCache cache = new FakeScoringCache();
+
             RunCreditScoringHandler handler = new RunCreditScoringHandler(
-                    repository,
-                    scoreRepository,
-                    taxProvider,
-                    calculator,
-                    unitOfWork);
+                repository,
+                scoreRepository,
+                taxProvider,
+                calculator,
+                unitOfWork,
+                cache);
 
             RunCreditScoringCommand command = new RunCreditScoringCommand(application.Id);
 
@@ -145,6 +179,10 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
             RunCreditScoringResult result = await handler.HandleAsync(command, CancellationToken.None);
 
             // Assert
+            Assert.Contains($"credit-application:{application.Id}", cache.RemovedKeys);
+
+            Assert.Contains($"credit-score:{application.Id}", cache.RemovedKeys);
+
             Assert.Equal(application.Id, result.ApplicationId);
 
             Assert.InRange(result.Score, 601, 1000);
@@ -163,7 +201,7 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             Assert.Equal(result.Decision, scoreRepository.CreditScore.Decision);
         }
-        
+
         [Fact]
         public async Task Handle_WhenApplicationDoesNotExist_Throws()
         {
@@ -187,12 +225,15 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             FakeScoringUnitOfWork unitOfWork = new FakeScoringUnitOfWork();
 
+            FakeScoringCache cache = new FakeScoringCache();
+
             RunCreditScoringHandler handler = new RunCreditScoringHandler(
-                    repository,
-                    scoreRepository,
-                    taxProvider,
-                    calculator,
-                    unitOfWork);
+                repository,
+                scoreRepository,
+                taxProvider,
+                calculator,
+                unitOfWork,
+                cache);
 
             RunCreditScoringCommand command = new RunCreditScoringCommand(Guid.NewGuid());
 
@@ -202,7 +243,7 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
                     command,
                     CancellationToken.None));
         }
-        
+
         [Fact]
         public async Task Handle_WhenTaxProviderFails_MarksApplicationAsFailed()
         {
@@ -230,12 +271,15 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
 
             FakeScoringUnitOfWork unitOfWork = new FakeScoringUnitOfWork();
 
+            FakeScoringCache cache = new FakeScoringCache();
+
             RunCreditScoringHandler handler = new RunCreditScoringHandler(
-                    repository,
-                    scoreRepository,
-                    taxProvider,
-                    calculator,
-                    unitOfWork);
+                repository,
+                scoreRepository,
+                taxProvider,
+                calculator,
+                unitOfWork,
+                cache);
 
             RunCreditScoringCommand command =
                 new RunCreditScoringCommand(
@@ -247,13 +291,15 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
                     command,
                     CancellationToken.None));
 
+            Assert.Empty(cache.RemovedKeys);
+
             Assert.Equal(
                 CreditApplicationStatus.Failed,
                 application.Status);
 
             Assert.True(unitOfWork.SaveCalled);
         }
-        
+
         [Fact]
         public async Task Handle_WhenApplicationAlreadyScored_Throws()
         {
@@ -288,13 +334,15 @@ namespace LoanPlatform.Scoring.Tests.Application.Commands.RunCreditScoring
             FakeScoringUnitOfWork unitOfWork =
                 new FakeScoringUnitOfWork();
 
-            RunCreditScoringHandler handler =
-                new RunCreditScoringHandler(
-                    repository,
-                    scoreRepository,
-                    new FakeTaxHistoryProvider(taxHistory),
-                    new CreditScoringCalculator(),
-                    unitOfWork);
+            FakeScoringCache cache = new FakeScoringCache();
+
+            RunCreditScoringHandler handler = new RunCreditScoringHandler(
+                repository,
+                scoreRepository,
+                new FakeTaxHistoryProvider(taxHistory),
+                new CreditScoringCalculator(),
+                unitOfWork,
+                cache);
 
             RunCreditScoringCommand command = new RunCreditScoringCommand(application.Id);
 

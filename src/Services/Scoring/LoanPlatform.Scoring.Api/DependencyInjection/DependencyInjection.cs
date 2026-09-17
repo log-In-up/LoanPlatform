@@ -4,6 +4,7 @@ using LoanPlatform.Scoring.Application.Commands.RunCreditScoring;
 using LoanPlatform.Scoring.Application.Queries.GetCreditApplication;
 using LoanPlatform.Scoring.Application.Queries.GetCreditScore;
 using LoanPlatform.Scoring.Domain.Scoring;
+using LoanPlatform.Scoring.Infrastructure.Caching;
 using LoanPlatform.Scoring.Infrastructure.Persistence;
 using LoanPlatform.Scoring.Infrastructure.Repositories;
 using LoanPlatform.Scoring.Infrastructure.TaxAuthority;
@@ -21,6 +22,19 @@ public static class DependencyInjection
         services.AddDbContext<ScoringDbContext>(options =>
             options.UseNpgsql(
                 configuration.GetConnectionString("ScoringDatabase")));
+
+        // Redis Cache
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration =
+                configuration.GetConnectionString("Redis")
+                ?? throw new InvalidOperationException(
+                    "Redis connection string is not configured.");
+
+            options.InstanceName = "LoanPlatform:Scoring:";
+        });
+
+        services.AddScoped<IScoringCache, RedisScoringCache>();
 
         // Repositories
         services.AddScoped<ICreditApplicationRepository, CreditApplicationRepository>();
