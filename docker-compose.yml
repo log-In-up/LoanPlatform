@@ -1,0 +1,189 @@
+services:
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: loanplatform-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  kafka-init:
+    image: apache/kafka:latest
+    container_name: loanplatform-kafka-init
+    depends_on:
+      - kafka
+    entrypoint: [ "/bin/sh", "-c" ]
+    command: >
+      "
+      until /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka:9092
+      --list >/dev/null 2>&1;
+      do
+        echo 'Waiting for Kafka...';
+        sleep 2;
+      done;
+
+      /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka:9092
+      --create
+      --if-not-exists
+      --topic loan-approved
+      --partitions 1
+      --replication-factor 1;
+
+      echo 'Kafka topic loan-approved is ready.';
+      "
+
+  redis:
+    image: redis:7-alpine
+    container_name: loanplatform-redis
+    ports:
+      - "6379:6379"
+
+  scoring-db:
+    image: postgres:18
+    container_name: loanplatform-scoring-db
+    environment:
+      POSTGRES_DB: loanplatform_scoring
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d loanplatform_scoring" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  loancore-db:
+    image: postgres:18
+    container_name: loanplatform-loancore-db
+    environment:
+      POSTGRES_DB: loanplatform_loancore
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d loanplatform_loancore" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  scoring-migrations:
+    build:
+      context: .
+      dockerfile: src/Services/Scoring/LoanPlatform.Scoring.Infrastructure/Dockerfile.migrations
+    container_name: loanplatform-scoring-migrations
+    environment:
+      ConnectionStrings__ScoringDatabase: "Host=scoring-db;Port=5432;Database=loanplatform_scoring;Username=postgres;Password=postgres"
+    depends_on:
+      scoring-db:
+        condition: service_healthy
+
+  loancore-migrations:
+    build:
+      context: .
+      dockerfile: src/Services/LoanCore/LoanPlatform.LoanCore.Infrastructure/Dockerfile.migrations
+    container_name: loanplatform-loancore-migrations
+    environment:
+      ConnectionStrings__LoanDatabase: "Host=loancore-db;Port=5432;Database=loanplatform_loancore;Username=postgres;Password=postgres"
+    depends_on:
+      loancore-db:
+        condition: service_healthy
+
+  fake-tax-authority:
+    build:
+      context: .
+      dockerfile: src/Services/FakeTaxAuthority/LoanPlatform.FakeTaxAuthority.Api/Dockerfile
+    container_name: loanplatform-fake-tax-authority
+    expose:
+      - "8080"
+
+  scoring-api:
+    build:
+      context: .
+      dockerfile: src/Services/Scoring/LoanPlatform.Scoring.Api/Dockerfile
+    container_name: loanplatform-scoring-api
+    environment:
+      ConnectionStrings__ScoringDatabase: "Host=scoring-db;Port=5432;Database=loanplatform_scoring;Username=postgres;Password=postgres"
+      ConnectionStrings__Redis: "redis:6379"
+      TaxAuthority__BaseUrl: "http://fake-tax-authority:8080/"
+    expose:
+      - "8080"
+    depends_on:
+      scoring-migrations:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+      fake-tax-authority:
+        condition: service_started
+
+  loancore-api:
+    build:
+      context: .
+      dockerfile: src/Services/LoanCore/LoanPlatform.LoanCore.Api/Dockerfile
+    container_name: loanplatform-loancore-api
+    environment:
+      ConnectionStrings__LoanDatabase: "Host=loancore-db;Port=5432;Database=loanplatform_loancore;Username=postgres;Password=postgres"
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__LoanApprovedTopic: "loan-approved"
+    expose:
+      - "8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      loancore-migrations:
+        condition: service_completed_successfully
+
+  notification-api:
+    build:
+      context: .
+      dockerfile: src/Services/Notification/LoanPlatform.Notification.Api/Dockerfile
+    container_name: loanplatform-notification-api
+    environment:
+      Kafka__BootstrapServers: "kafka:9092"
+      Kafka__LoanApprovedTopic: "loan-approved"
+      Kafka__ConsumerGroup: "loanplatform-notification"
+    expose:
+      - "8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+
+  gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/LoanPlatform.ApiGateway/Dockerfile
+    container_name: loanplatform-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      Jwt__Key: "${JWT_KEY}"
+      Jwt__Issuer: "${JWT_ISSUER}"
+      Jwt__Audience: "${JWT_AUDIENCE}"
+      DemoUser__Username: "${DEMO_USER_USERNAME}"
+      DemoUser__Password: "${DEMO_USER_PASSWORD}"
+      ReverseProxy__Clusters__scoring-cluster__Destinations__scoring-api__Address: "http://scoring-api:8080/"
+    depends_on:
+      - scoring-api
+      - loancore-api
+      - notification-api

@@ -9,8 +9,12 @@ namespace LoanPlatform.Scoring.Infrastructure.Persistence
         {
             DbContextOptionsBuilder<ScoringDbContext> optionsBuilder = new();
 
-            optionsBuilder.UseNpgsql(
-                "Host=localhost;Port=5432;Database=loanplatform_scoring;Username=postgres;Password=postgres");
+            string connectionString =
+                Environment.GetEnvironmentVariable(
+                    "ConnectionStrings__ScoringDatabase")
+                ?? "Host=localhost;Port=5432;Database=loanplatform_scoring;Username=postgres;Password=postgres";
+
+            optionsBuilder.UseNpgsql(connectionString);
 
             return new ScoringDbContext(optionsBuilder.Options);
         }
