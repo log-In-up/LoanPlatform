@@ -1,5 +1,6 @@
 using LoanPlatform.Scoring.Api.BuildingBlocks.Logging;
 using LoanPlatform.Scoring.Api.DependencyInjection;
+using LoanPlatform.Scoring.Api.OpenApi;
 using Serilog;
 
 namespace LoanPlatform.Scoring.Api
@@ -13,7 +14,12 @@ namespace LoanPlatform.Scoring.Api
             builder.Host.AddSerilogLogging();
             
             builder.Services.AddControllers();
-            builder.Services.AddOpenApi();
+            
+            builder.Services.AddOpenApi(options =>
+            {
+                options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
+            });
+            
             builder.Services.AddScoringServices(builder.Configuration);
             builder.Services.AddAuthorization();
 
@@ -21,9 +27,17 @@ namespace LoanPlatform.Scoring.Api
             
             application.UseSerilogRequestLogging();
             
-            if (application.Environment.IsDevelopment())
+            if (builder.Configuration.GetValue<bool>("OpenApi:Enabled"))
             {
                 application.MapOpenApi();
+
+                application.UseSwaggerUI(options =>
+                {
+                    const string url = "/api/scoring/openapi/v1.json";
+                    const string name = "LoanPlatform Scoring API v1";
+
+                    options.SwaggerEndpoint(url, name);
+                });
             }
 
             application.UseHttpsRedirection();

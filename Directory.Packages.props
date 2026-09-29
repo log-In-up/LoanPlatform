@@ -1,0 +1,75 @@
+
+<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- ASP.NET Core -->
+        <PackageVersion Include="Microsoft.AspNetCore.OpenApi"
+                        Version="9.0.20" />
+
+        <!-- Entity Framework Core -->
+        <PackageVersion Include="Microsoft.EntityFrameworkCore"
+                        Version="9.0.20" />
+
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Design"
+                        Version="9.0.20" />
+
+        <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational"
+                        Version="9.0.20" />
+
+        <!-- PostgreSQL -->
+        <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL"
+                        Version="9.0.4" />
+
+        <!-- Kafka -->
+        <PackageVersion Include="Confluent.Kafka"
+                        Version="2.15.1" />
+
+        <!-- Redis -->
+        <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis"
+                        Version="9.0.20" />
+
+        <!-- Logging -->
+        <PackageVersion Include="Serilog.AspNetCore"
+                        Version="9.0.0" />
+
+        <PackageVersion Include="Serilog.Sinks.Console"
+                        Version="6.1.1" />
+
+        <!-- API Gateway -->
+        <PackageVersion Include="Yarp.ReverseProxy"
+                        Version="2.3.0" />
+
+        <!-- Swagger -->
+        <PackageVersion Include="Swashbuckle.AspNetCore.SwaggerUI"
+                        Version="7.3.0" />
+
+        <!-- Testing -->
+        <PackageVersion Include="coverlet.collector"
+                        Version="6.0.4" />
+
+        <PackageVersion Include="Microsoft.NET.Test.Sdk"
+                        Version="17.12.0" />
+
+        <PackageVersion Include="xunit"
+                        Version="2.9.3" />
+
+        <PackageVersion Include="xunit.runner.visualstudio"
+                        Version="2.8.2" />
+
+        <PackageVersion Include="Moq"
+                        Version="4.20.72" />
+
+        <!-- Other Microsoft dependencies -->
+        <PackageVersion Include="Microsoft.Extensions.Hosting"
+                        Version="9.0.20" />
+
+        <PackageVersion Include="Microsoft.Extensions.Configuration"
+                        Version="9.0.20" />
+
+        <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer"
+                        Version="9.0.20" />
+    </ItemGroup>
+</Project>

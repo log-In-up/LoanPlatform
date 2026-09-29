@@ -127,6 +127,7 @@ services:
       ConnectionStrings__ScoringDatabase: "Host=scoring-db;Port=5432;Database=loanplatform_scoring;Username=postgres;Password=postgres"
       ConnectionStrings__Redis: "redis:6379"
       TaxAuthority__BaseUrl: "http://fake-tax-authority:8080/"
+      OpenApi__Enabled: "true"
     expose:
       - "8080"
     depends_on:
